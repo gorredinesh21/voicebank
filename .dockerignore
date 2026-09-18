@@ -1,0 +1,7 @@
+web/node_modules
+server/.venv
+server/__pycache__
+**/__pycache__
+.git
+PROGRESS.md
+*.log

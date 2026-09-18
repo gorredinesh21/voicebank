@@ -1,0 +1,13 @@
+# frontend
+web/node_modules/
+web/dist/
+
+# python
+server/.venv/
+__pycache__/
+*.pyc
+
+# misc
+.DS_Store
+*.log
+PROGRESS.md
