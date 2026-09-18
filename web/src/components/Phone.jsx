@@ -1,11 +1,10 @@
 import React from 'react'
-import { money, words } from '../lib/state'
 import {
   WelcomeScreen, LoginScreen, HomeScreen, TransferScreen, ConfirmScreen,
   PinScreen, ReceiptScreen, BillsScreen, HelpScreen,
 } from './Screens'
 
-export default function Phone({ state, highlight, dispatch }) {
+export default function Phone({ state, highlight, dispatch, typing, cursor }) {
   const hl = (id) =>
     highlight && ((highlight.kind === 'tap' && highlight.id === id) ||
       (highlight.kind === 'fill' && highlight.id === id))
@@ -16,7 +15,7 @@ export default function Phone({ state, highlight, dispatch }) {
     welcome: <WelcomeScreen dispatch={dispatch} hl={hl} />,
     login: <LoginScreen state={state} dispatch={dispatch} hl={hl} />,
     home: <HomeScreen state={state} dispatch={dispatch} hl={hl} />,
-    transfer: <TransferScreen state={state} dispatch={dispatch} hl={hl} />,
+    transfer: <TransferScreen state={state} dispatch={dispatch} hl={hl} typing={typing} />,
     confirm: <ConfirmScreen state={state} dispatch={dispatch} hl={hl} />,
     pin: <PinScreen state={state} dispatch={dispatch} hl={hl} />,
     receipt: <ReceiptScreen state={state} dispatch={dispatch} hl={hl} />,
@@ -27,6 +26,7 @@ export default function Phone({ state, highlight, dispatch }) {
   return (
     <section className="phone-wrap" aria-label="Phone running the VoiceBank app">
       <div className="phone">
+        {cursor && stageCursor(cursor)}
         <div className="notch" />
         <div className="statusbar">
           <span>9:41</span>
@@ -49,4 +49,18 @@ export default function Phone({ state, highlight, dispatch }) {
   )
 }
 
-export { money, words }
+// The ghost cursor: a floating ring that flies to each target before the
+// agent presses it, so users literally watch the AI operate the phone.
+function stageCursor(cursor) {
+  return (
+    <div
+      className="ghost-cursor"
+      style={{ left: cursor.x, top: cursor.y }}
+      aria-hidden="true"
+    >
+      <span className="gc-ring" />
+      <span className="gc-dot" />
+      <span className="gc-label">AI</span>
+    </div>
+  )
+}

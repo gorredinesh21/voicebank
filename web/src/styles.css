@@ -56,6 +56,7 @@ body {
 /* ---------------- phone ---------------- */
 .phone-wrap { display: flex; flex-direction: column; align-items: center; }
 .phone {
+  position: relative;
   width: 100%; max-width: 380px; background: #0b0e16; border-radius: 44px; padding: 12px;
   box-shadow: 0 24px 60px rgba(16,24,40,.35), 0 0 0 2px #262c3d;
 }
@@ -139,15 +140,46 @@ body {
 .help-list { padding-left: 4px; list-style: none; }
 .help-list li { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; font-size: 14.5px; }
 
-/* agent-acting animations */
+/* agent-acting animations — deliberately theatrical so users SEE the AI act */
+.ghost-cursor {
+  position: absolute; z-index: 30; width: 0; height: 0;
+  transition: left .38s cubic-bezier(.4, 0, .2, 1), top .38s cubic-bezier(.4, 0, .2, 1);
+  pointer-events: none;
+}
+.gc-ring {
+  position: absolute; left: -16px; top: -16px; width: 32px; height: 32px;
+  border: 2.5px solid var(--brand); border-radius: 50%;
+  background: rgba(29,63,214,.14);
+  box-shadow: 0 0 0 6px rgba(29,63,214,.15), 0 4px 14px rgba(29,63,214,.4);
+  animation: gcBreathe 1.1s ease infinite;
+}
+.gc-dot {
+  position: absolute; left: -3px; top: -3px; width: 6px; height: 6px;
+  background: var(--brand); border-radius: 50%;
+}
+.gc-label {
+  position: absolute; left: 14px; top: -26px; background: var(--brand); color: #fff;
+  font-size: 9px; font-weight: 800; letter-spacing: .08em; padding: 2px 6px;
+  border-radius: 6px; box-shadow: 0 2px 8px rgba(29,63,214,.5);
+}
+@keyframes gcBreathe { 50% { transform: scale(1.18); } }
+
 .glow { animation: glowPulse .6s ease 2; }
 @keyframes glowPulse {
-  0% { box-shadow: 0 0 0 0 rgba(29,63,214,.55); }
-  70% { box-shadow: 0 0 0 14px rgba(29,63,214,0); }
+  0% { box-shadow: 0 0 0 0 rgba(29,63,214,.65); transform: scale(1); }
+  35% { transform: scale(.94); }
+  70% { box-shadow: 0 0 0 16px rgba(29,63,214,0); transform: scale(1); }
   100% { box-shadow: 0 0 0 0 rgba(29,63,214,0); }
 }
 .just-filled { animation: fillFlash .5s ease; border-color: var(--brand) !important; }
 @keyframes fillFlash { 0% { background: #dbe4ff; } 100% { background: #fff; } }
+
+/* typewriter caret while the agent types into a field */
+.input.typing { border-color: var(--brand); background: var(--brand-soft); }
+.input.typing::after { content: none; }
+.caret { display: inline-block; width: 2px; height: 1em; background: var(--brand);
+  animation: caretBlink .7s step-end infinite; margin-left: 2px; vertical-align: text-bottom; }
+@keyframes caretBlink { 50% { opacity: 0; } }
 
 /* ---------------- console ---------------- */
 .console {

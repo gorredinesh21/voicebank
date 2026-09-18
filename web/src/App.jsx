@@ -15,6 +15,21 @@ export default function App() {
   const [highlight, setHighlight] = useState(null)
   const [typed, setTyped] = useState('')
   const [stage, setStage] = useState(null) // 'ears' | 'brain' | 'hands' | 'mouth' | null
+  const [cursor, setCursor] = useState(null) // {x, y, pressing} inside the phone
+  const [typing, setTyping] = useState(null) // {field, text} visual typewriter overlay
+
+  // Fly the ghost cursor to an element inside the phone (by data-id).
+  const moveCursor = useCallback(async (targetId) => {
+    try {
+      const phone = document.querySelector('.phone')
+      const el = phone?.querySelector(`[data-id="${targetId}"]`)
+      if (!phone || !el) return
+      const pr = phone.getBoundingClientRect()
+      const er = el.getBoundingClientRect()
+      setCursor({ x: er.left + er.width / 2 - pr.left, y: er.top + er.height / 2 - pr.top, pressing: false })
+      await new Promise((r) => setTimeout(r, 420)) // let the CSS transition fly
+    } catch { /* cursor is cosmetic — never block the action */ }
+  }, [])
 
   const stateRef = useRef(state)
   const historyRef = useRef(history)
@@ -57,11 +72,15 @@ export default function App() {
         resetAll,
         setStage,
         setTurnDone,
+        ui: { moveCursor, setTyping },
       }).catch((e) => toast('Unexpected error: ' + e.message))
     },
-    [logFn, resetAll, say, setThinking, setTurnDone, toast]
+    [logFn, moveCursor, resetAll, say, setThinking, setTurnDone, toast]
   )
   handleRef.current = onUtterance
+
+  // hide the ghost cursor once the turn is over
+  useEffect(() => { if (stage === null) setCursor(null) }, [stage])
 
   const submitTyped = (e) => {
     e.preventDefault()
@@ -126,7 +145,7 @@ export default function App() {
       </header>
 
       <main className="workspace">
-        <Phone state={state} highlight={highlight} dispatch={dispatch} />
+        <Phone state={state} highlight={highlight} dispatch={dispatch} typing={typing} cursor={cursor} />
         <Console
           statusLabel={statusLabel}
           transcript={voice.transcript}

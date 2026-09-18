@@ -75,26 +75,31 @@ export function HomeScreen({ state, dispatch, hl }) {
   )
 }
 
-export function TransferScreen({ state, dispatch, hl }) {
+export function TransferScreen({ state, dispatch, hl, typing }) {
   const { form, formError } = state
+  // while the agent types into a field, show the partial text + block caret
+  const tv = (id, real) =>
+    typing && typing.field === id
+      ? { value: typing.text + '▍', cls: 'input typing' }
+      : { value: real ?? '', cls: 'input' }
   return (
     <div className="scr">
       <h2>Transfer money</h2>
       <p className="hint">From Savings ****4821</p>
       <label className="field">
         <span>To</span>
-        <input data-id="payee" className={`input ${hl('payee')}`} value={form.payee}
-          placeholder="Mom" readOnly />
+        <input data-id="payee" className={`${tv('payee', form.payee).cls} ${hl('payee')}`}
+          value={tv('payee', form.payee).value} placeholder="Mom" readOnly />
       </label>
       <label className="field">
         <span>Amount (₹)</span>
-        <input data-id="amount" className={`input ${hl('amount')}`} value={form.amount ?? ''}
-          placeholder="500" readOnly inputMode="decimal" />
+        <input data-id="amount" className={`${tv('amount', form.amount).cls} ${hl('amount')}`}
+          value={tv('amount', form.amount).value} placeholder="500" readOnly inputMode="decimal" />
       </label>
       <label className="field">
         <span>Note (optional)</span>
-        <input data-id="note" className={`input ${hl('note')}`} value={form.note}
-          placeholder="Rent for October" readOnly />
+        <input data-id="note" className={`${tv('note', form.note).cls} ${hl('note')}`}
+          value={tv('note', form.note).value} placeholder="Rent for October" readOnly />
       </label>
       {formError && <div className="form-error" role="alert">{formError}</div>}
       <div className="actions">
