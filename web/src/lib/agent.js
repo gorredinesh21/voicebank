@@ -49,6 +49,51 @@ const LOCAL_RAILS = [
   },
 ]
 
+// Spoken PIN digits: deterministic single-breath completion, no LLM round trip.
+// "one two three four" finishes whatever confirmation stages remain.
+const DIGIT_WORDS = {
+  zero: '0', oh: '0', o: '0', one: '1', two: '2', three: '3', four: '4',
+  five: '5', six: '6', seven: '7', eight: '8', nine: '9',
+}
+
+function parseSpokenDigits(text) {
+  const words = text.toLowerCase().replace(/[\s,]+/g, ' ').trim().split(' ')
+  if (words.length === 1 && /^[0-9]{4}$/.test(words[0])) return words[0]
+  if (words.length < 3 || words.length > 5) return null
+  const digits = words.map((w) => DIGIT_WORDS[w])
+  if (digits.some((d) => !d)) return null
+  return digits.join('')
+}
+
+async function pinRail(state, dispatch, highlight, text) {
+  const pin = parseSpokenDigits(text)
+  if (!pin) return null
+  const { money } = await import('./state')
+  const tx =
+    state.screen === 'confirm' || state.screen === 'pin'
+      ? state.pendingTx
+      : state.form.payee && state.form.amount
+        ? { payee: state.form.payee, amount: state.form.amount }
+        : null
+  if (!tx) return null // digits with no payment in flight -> let the LLM handle
+  if (state.screen === 'transfer') {
+    highlight({ kind: 'tap', id: 'btn_continue' })
+    await sleep(500)
+    dispatch({ type: 'TAP', target: 'btn_continue' })
+    await sleep(400)
+  }
+  if (state.screen === 'transfer' || state.screen === 'confirm') {
+    highlight({ kind: 'tap', id: 'btn_confirm' })
+    await sleep(500)
+    dispatch({ type: 'TAP', target: 'btn_confirm' })
+    await sleep(400)
+  }
+  dispatch({ type: 'FILL', field: 'pin', value: pin })
+  highlight({ kind: 'fill', id: 'pin' })
+  await sleep(400)
+  return { speak: `Done. ${money(tx.amount)} sent to ${tx.payee}.` }
+}
+
 async function callAgent(utterance, state, history) {
   const res = await fetch('/api/act', {
     method: 'POST',
@@ -130,6 +175,16 @@ export async function handleUtterance({
         resetAll()
       }
       log({ role: 'agent', text: out.speak, did: 'local rail' })
+      await say(out.speak)
+      return
+    }
+  }
+
+  // Deterministic PIN completion — runs before the LLM.
+  if (state.screen === 'transfer' || state.screen === 'confirm' || state.screen === 'pin') {
+    const out = await pinRail(state, dispatch, highlight, text)
+    if (out) {
+      log({ role: 'agent', text: out.speak, did: '● pin rail — completed payment' })
       await say(out.speak)
       return
     }
