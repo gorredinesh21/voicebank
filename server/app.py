@@ -239,7 +239,11 @@ def health():
 
 
 # Serve the built frontend in production (same origin -> mic works on HTTPS).
-DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "dist")
+# Docker copies server/ flat next to web/dist; the repo keeps server/ and web/ apart.
+_BASE = os.path.dirname(os.path.abspath(__file__))
+DIST = os.path.join(_BASE, "web", "dist")
+if not os.path.isdir(DIST):
+    DIST = os.path.join(os.path.dirname(_BASE), "web", "dist")
 if os.path.isdir(DIST):
     app.mount("/assets", StaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
 
