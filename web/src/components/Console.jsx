@@ -1,8 +1,16 @@
 import React, { useEffect, useRef } from 'react'
 
-// The agent console: mic status, live transcript, action log, typed fallback.
+const STAGES = [
+  { id: 'ears', icon: '🎙️', label: 'Heard' },
+  { id: 'brain', icon: '🧠', label: 'Thinking' },
+  { id: 'hands', icon: '🖐️', label: 'Acting' },
+  { id: 'mouth', icon: '🔊', label: 'Speaking' },
+]
+
+// The agent console: pipeline chips, mic status, live transcript, action log,
+// typed fallback. Everything the agent does is visible here on purpose.
 export default function Console({
-  statusLabel, transcript, micError, log, micOn, supported,
+  statusLabel, transcript, micError, endingTurn, stage, log, micOn, supported,
   onRestartMic, typed, setTyped, submitTyped,
 }) {
   const logEndRef = useRef(null)
@@ -14,6 +22,17 @@ export default function Console({
         <span className={`status-dot ${statusLabel.cls}`} />
         <span className="status-text">{statusLabel.text}</span>
         <span className="console-title">Agent console</span>
+      </div>
+
+      <div className="stages" aria-label="Pipeline stages">
+        {STAGES.map((s, i) => (
+          <React.Fragment key={s.id}>
+            {i > 0 && <span className="stage-arrow">›</span>}
+            <span className={'stage-chip' + (stage === s.id ? ' active' : '')}>
+              <span className="stage-ic">{s.icon}</span> {s.label}
+            </span>
+          </React.Fragment>
+        ))}
       </div>
 
       {micError && (
@@ -29,7 +48,17 @@ export default function Console({
       )}
 
       <div className="transcript" data-id="transcript">
-        {transcript ? <span className="interim">“{transcript}”</span> : <span className="transcript-idle">Your words will appear here…</span>}
+        {transcript ? (
+          <span className="interim">
+            “{transcript}”
+            {endingTurn && <span className="ending"> … got it, sending</span>}
+            {!endingTurn && micOn && <span className="keepgoing"> …keep talking, pause when done</span>}
+          </span>
+        ) : (
+          <span className="transcript-idle">
+            {micOn ? 'Listening — your words appear here as you speak. Pause ~2s to finish.' : 'Your words will appear here…'}
+          </span>
+        )}
       </div>
 
       <form className="typed-bar" onSubmit={submitTyped}>
@@ -53,6 +82,11 @@ export default function Console({
             <span className="lt">{l.ts}</span>
             <div className="ltext">{l.text}</div>
             {l.did && <div className="ldid">{l.did}</div>}
+            {l.saw && (
+              <div className="lsaw" title={JSON.stringify(l.saw)}>
+                saw: {JSON.stringify(l.saw).slice(0, 110)}…
+              </div>
+            )}
           </div>
         ))}
         <div ref={logEndRef} />

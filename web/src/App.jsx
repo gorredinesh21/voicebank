@@ -14,6 +14,7 @@ export default function App() {
   const [toasts, setToasts] = useState([])
   const [highlight, setHighlight] = useState(null)
   const [typed, setTyped] = useState('')
+  const [stage, setStage] = useState(null) // 'ears' | 'brain' | 'hands' | 'mouth' | null
 
   const stateRef = useRef(state)
   const historyRef = useRef(history)
@@ -38,7 +39,7 @@ export default function App() {
   // and onUtterance must reach useVoice — break the cycle with a ref.
   const handleRef = useRef(null)
   const voice = useVoice({ enabled: micOn, onUtterance: (t) => handleRef.current?.(t) })
-  const { say, setThinking } = voice
+  const { say, setThinking, setTurnDone } = voice
 
   const onUtterance = useCallback(
     (text) => {
@@ -54,9 +55,11 @@ export default function App() {
         highlight: setHighlight,
         toast,
         resetAll,
+        setStage,
+        setTurnDone,
       }).catch((e) => toast('Unexpected error: ' + e.message))
     },
-    [logFn, resetAll, say, setThinking, toast]
+    [logFn, resetAll, say, setThinking, setTurnDone, toast]
   )
   handleRef.current = onUtterance
 
@@ -101,8 +104,17 @@ export default function App() {
           <ol className="howto">
             <li><b>Click Start</b> (Chrome or Edge, allow the microphone)</li>
             <li><b>Just talk</b> — “what’s my balance?”, “send 500 rupees to Mom”, “pay my wifi bill”</li>
-            <li><b>Confirm by voice</b> — money only moves after you say so and speak your PIN</li>
+            <li><b>Pause when done</b> — after a moment of quiet, the agent takes its turn</li>
           </ol>
+          <div className="pipeline">
+            <div className="pipe-step"><span>🎙️</span><b>Your voice → text</b><i>speech recognition</i></div>
+            <div className="pipe-arrow">→</div>
+            <div className="pipe-step"><span>🧠</span><b>AI decides</b><i>reads your words + the screen</i></div>
+            <div className="pipe-arrow">→</div>
+            <div className="pipe-step"><span>🖐️</span><b>It taps &amp; types</b><i>drives the app like a finger</i></div>
+            <div className="pipe-arrow">→</div>
+            <div className="pipe-step"><span>🔊</span><b>It speaks back</b><i>confirms every step</i></div>
+          </div>
           {!micOn && (
             <button className="cta" onClick={startDemo}>Start voice banking</button>
           )}
@@ -119,6 +131,8 @@ export default function App() {
           statusLabel={statusLabel}
           transcript={voice.transcript}
           micError={voice.micError}
+          endingTurn={voice.endingTurn}
+          stage={stage}
           log={log}
           micOn={micOn}
           supported={voice.supported}

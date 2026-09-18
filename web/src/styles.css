@@ -165,6 +165,41 @@ body {
 @keyframes breathe { 50% { opacity: .45; } }
 .status-text { font-weight: 700; font-size: 14px; }
 
+/* pipeline stage chips */
+.stages { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.stage-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #131a2c; border: 1px solid var(--console-line); border-radius: 999px;
+  color: #8b98b8; font-size: 12px; font-weight: 700; padding: 6px 12px;
+  transition: all .2s ease;
+}
+.stage-chip.active {
+  color: #fff; border-color: var(--brand); background: rgba(29,63,214,.25);
+  box-shadow: 0 0 14px rgba(29,63,214,.45); transform: translateY(-1px);
+}
+.stage-arrow { color: #414a63; font-size: 12px; }
+
+/* hero pipeline (layman explainer) */
+.pipeline { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; margin: 0 0 22px; }
+.pipe-step {
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 12px; padding: 10px 14px; max-width: 190px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.pipe-step span { font-size: 20px; }
+.pipe-step b { color: #e6ebf7; font-size: 13px; }
+.pipe-step i { color: #8b98b8; font-size: 11.5px; font-style: normal; }
+.pipe-arrow { align-self: center; color: #5d6883; font-size: 16px; }
+
+/* transcript turn cues */
+.ending { color: #4ade80; font-style: normal; font-size: 13px; }
+.keepgoing { color: #5d6883; font-size: 12px; }
+.lsaw {
+  margin-top: 4px; color: #5d6883; font-size: 11px; cursor: help;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 .mic-error { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.4); color: #fca5a5; border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.5; }
 .linkish { background: none; border: 0; color: #93c5fd; cursor: pointer; font-size: 13px; text-decoration: underline; padding: 0; }
 

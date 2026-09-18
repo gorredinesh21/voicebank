@@ -6,7 +6,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 // STT: Web Speech API (Chrome/Edge), en-IN, continuous with auto-restart.
 // TTS: speechSynthesis, preferred English voice.
 // Echo guard: recognition is stopped while we speak, resumed after.
+//
+// Turn-taking (endpointing): Chrome fires a "final" result every time you
+// pause mid-sentence. We do NOT treat each pause as a complete turn — finals
+// are buffered, and only after SILENCE_MS of quiet following speech is the
+// whole buffered sentence handed to the agent. Small gaps keep you talking.
 // ---------------------------------------------------------------------------
+
+const SILENCE_MS = 2500 // pause that ends a turn
+const WATCHDOG_TICK_MS = 300
 
 const VoiceStatus = {
   IDLE: 'idle',
@@ -31,13 +39,21 @@ export function useVoice({ enabled, onUtterance, onSpeakStart, onSpeakEnd }) {
   const [status, setStatus] = useState(VoiceStatus.IDLE)
   const [transcript, setTranscript] = useState('')
   const [micError, setMicError] = useState('')
+  const [endingTurn, setEndingTurn] = useState(false)
   const recRef = useRef(null)
   const wantListeningRef = useRef(false)
   const speakingRef = useRef(false)
+  const busyRef = useRef(false) // true while the agent thinks/acts/speaks
   const onUtteranceRef = useRef(onUtterance)
   const voiceRef = useRef(null)
   const supported = typeof window !== 'undefined' &&
     !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+
+  // turn buffer lives outside the recognition instance so restarts can't lose it
+  const bufferRef = useRef('')
+  const interimRef = useRef('')
+  const lastSpeechAtRef = useRef(0)
+  const gotSpeechRef = useRef(false)
 
   useEffect(() => { onUtteranceRef.current = onUtterance }, [onUtterance])
 
@@ -57,8 +73,31 @@ export function useVoice({ enabled, onUtterance, onSpeakStart, onSpeakEnd }) {
     return () => { window.speechSynthesis.onvoiceschanged = null }
   }, [])
 
+  const flushTurn = useCallback(() => {
+    const turn = (bufferRef.current + ' ' + interimRef.current).trim()
+    bufferRef.current = ''
+    interimRef.current = ''
+    gotSpeechRef.current = false
+    setEndingTurn(false)
+    setTranscript('')
+    if (turn) onUtteranceRef.current(turn)
+  }, [])
+
+  // silence watchdog — the ONLY thing that ends a turn
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!wantListeningRef.current || speakingRef.current || busyRef.current) return
+      if (!gotSpeechRef.current) return
+      const quietFor = Date.now() - lastSpeechAtRef.current
+      const remaining = SILENCE_MS - quietFor
+      setEndingTurn(remaining > 0 && remaining <= 1200) // visual cue in the last stretch
+      if (quietFor >= SILENCE_MS) flushTurn()
+    }, WATCHDOG_TICK_MS)
+    return () => clearInterval(id)
+  }, [flushTurn])
+
   const startListening = useCallback(() => {
-    if (!supported || speakingRef.current || !wantListeningRef.current) return
+    if (!supported || speakingRef.current || busyRef.current || !wantListeningRef.current) return
     const rec = recRef.current
     if (!rec) return
     try {
@@ -90,15 +129,18 @@ export function useVoice({ enabled, onUtterance, onSpeakStart, onSpeakEnd }) {
         const res = e.results[i]
         const text = res[0].transcript.trim()
         if (res.isFinal) {
-          if (text) {
-            setTranscript('')
-            onUtteranceRef.current(text)
-          }
+          if (text) bufferRef.current = (bufferRef.current + ' ' + text).trim()
         } else {
           interim += text + ' '
         }
       }
-      if (interim) setTranscript(interim.trim())
+      if (interim) interimRef.current = interim.trim()
+      // any speech, final or interim, refreshes the turn timer
+      if (bufferRef.current || interimRef.current) {
+        lastSpeechAtRef.current = Date.now()
+        gotSpeechRef.current = true
+      }
+      setTranscript((bufferRef.current + ' ' + interimRef.current).trim())
     }
 
     rec.onerror = (e) => {
@@ -109,15 +151,17 @@ export function useVoice({ enabled, onUtterance, onSpeakStart, onSpeakEnd }) {
         )
         setStatus(VoiceStatus.MIC_ERROR)
       } else if (e.error === 'no-speech' || e.error === 'aborted') {
-        // benign — onend will restart us
+        // benign — onend will restart us; buffered speech is preserved
       } else {
         setMicError('Voice error: ' + e.error)
       }
     }
 
     rec.onend = () => {
-      if (wantListeningRef.current && !speakingRef.current) {
-        setTimeout(() => startListening(), 250) // auto-restart continuous mode
+      // Chrome ends the stream on its own sometimes; restart keeps the mic
+      // alive WITHOUT flushing the turn — the silence watchdog decides that.
+      if (wantListeningRef.current && !speakingRef.current && !busyRef.current) {
+        setTimeout(() => startListening(), 250)
       } else if (!wantListeningRef.current) {
         setStatus(VoiceStatus.IDLE)
       }
@@ -170,12 +214,18 @@ export function useVoice({ enabled, onUtterance, onSpeakStart, onSpeakEnd }) {
   )
 
   const setThinking = useCallback(() => {
+    busyRef.current = true
     stopListening()
     setStatus(VoiceStatus.THINKING)
   }, [stopListening])
 
+  const setTurnDone = useCallback(() => {
+    // called by the app when the turn's actions finished (after say())
+    busyRef.current = false
+  }, [])
+
   const pauseMic = stopListening
   const resumeMic = startListening
 
-  return { status, transcript, micError, supported, enableMic, say, setThinking, pauseMic, resumeMic, VoiceStatus }
+  return { status, transcript, micError, endingTurn, supported, enableMic, say, setThinking, setTurnDone, pauseMic, resumeMic, VoiceStatus }
 }

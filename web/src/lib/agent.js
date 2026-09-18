@@ -162,47 +162,65 @@ export async function handleUtterance({
   highlight,
   toast,
   resetAll,
+  setStage,
+  setTurnDone,
 }) {
   const text = utterance.trim()
   if (!text) return
+  setStage?.('ears')
   log({ role: 'user', text })
   const state = stateRef.current
+  const saw = describeState(state)
 
-  for (const rail of LOCAL_RAILS) {
-    if (rail.test.test(text)) {
-      const out = await rail.run(state, dispatch)
-      if (out.reset) {
-        resetAll()
-      }
-      log({ role: 'agent', text: out.speak, did: 'local rail' })
-      await say(out.speak)
-      return
-    }
-  }
-
-  // Deterministic PIN completion — runs before the LLM.
-  if (state.screen === 'transfer' || state.screen === 'confirm' || state.screen === 'pin') {
-    const out = await pinRail(state, dispatch, highlight, text)
-    if (out) {
-      log({ role: 'agent', text: out.speak, did: '● pin rail — completed payment' })
-      await say(out.speak)
-      return
-    }
-  }
-
-  setThinking()
-  let reply
   try {
-    reply = await callAgent(text, state, historyRef.current)
-  } catch (e) {
-    toast(`Agent error: ${e.message}`)
-    log({ role: 'error', text: e.message })
-    await say('Sorry, my brain hiccupped. Please try again.')
-    return
-  }
+    for (const rail of LOCAL_RAILS) {
+      if (rail.test.test(text)) {
+        setStage?.('brain')
+        const out = await rail.run(state, dispatch)
+        if (out.reset) {
+          resetAll()
+        }
+        setStage?.('hands')
+        log({ role: 'agent', text: out.speak, did: '● local rail (offline, no AI call)', saw })
+        setStage?.('mouth')
+        await say(out.speak)
+        return
+      }
+    }
 
-  await executeActions(reply.actions, dispatch, highlight)
-  log({ role: 'agent', text: reply.speak, did: describeActions(reply.actions) })
-  setHistory([...historyRef.current, { user: text, did: describeActions(reply.actions) }].slice(-3))
-  await say(reply.speak)
+    // Deterministic PIN completion — runs before the LLM.
+    if (state.screen === 'transfer' || state.screen === 'confirm' || state.screen === 'pin') {
+      const out = await pinRail(state, dispatch, highlight, text)
+      if (out) {
+        setStage?.('hands')
+        log({ role: 'agent', text: out.speak, did: '● pin rail — completed payment (offline)', saw })
+        setStage?.('mouth')
+        await say(out.speak)
+        return
+      }
+    }
+
+    setStage?.('brain')
+    setThinking()
+    let reply
+    try {
+      reply = await callAgent(text, state, historyRef.current)
+    } catch (e) {
+      toast(`Agent error: ${e.message}`)
+      log({ role: 'error', text: e.message })
+      setStage?.('mouth')
+      await say('Sorry, my brain hiccupped. Please try again.')
+      return
+    }
+
+    setStage?.('hands')
+    await executeActions(reply.actions, dispatch, highlight)
+    log({ role: 'agent', text: reply.speak, did: describeActions(reply.actions) || '(speak only)', saw })
+    setHistory([...historyRef.current, { user: text, did: describeActions(reply.actions) }].slice(-3))
+    setStage?.('mouth')
+    await say(reply.speak)
+  } finally {
+    setStage?.(null)
+    setTurnDone?.()
+  }
 }
